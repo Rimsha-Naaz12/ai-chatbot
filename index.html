@@ -227,28 +227,31 @@ async function sendMessage() {
 
     chatDiv.innerHTML += `<div class="bubble user">${text}</div>`;
 
-    let res = await fetch("http://localhost:8000/chat", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({ text })
-    });
+    try {
+        let res = await fetch("https://ai-chatbot-q913.onrender.com/chat", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({ message: text })
+        });
 
-    let data = await res.json();
+        let data = await res.json();
 
-    chatDiv.innerHTML += `<div class="bubble bot">${formatResponse(data.reply)}</div>`;
+        chatDiv.innerHTML += `<div class="bubble bot">${formatResponse(data.reply)}</div>`;
 
-    currentChat.push({ user: text, bot: data.reply });
+        currentChat.push({ user: text, bot: data.reply });
 
-    if (!chats.includes(currentChat)) {
-        chats.push(currentChat);
+        if (!chats.includes(currentChat)) {
+            chats.push(currentChat);
+        }
+
+        saveChats();
+        loadSidebar();
+
+    } catch (error) {
+        chatDiv.innerHTML += `<div class="bubble bot">⚠️ Error connecting to server</div>`;
     }
 
-    saveChats();
-    loadSidebar();
-
-    // Clear input automatically
     input.value = "";
-
     chatDiv.scrollTop = chatDiv.scrollHeight;
 }
 
