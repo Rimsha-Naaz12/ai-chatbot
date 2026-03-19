@@ -231,7 +231,7 @@ async function sendMessage() {
         let res = await fetch("https://ai-chatbot-q913.onrender.com/chat", {
             method: "POST",
             headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({ message: text })
+            body: JSON.stringify({ text: text }) // ✅ updated here
         });
 
         let data = await res.json();
