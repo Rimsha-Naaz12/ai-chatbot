@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Chatbot</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial;
+            display: flex;
+            height: 100vh;
+            background: #0f172a;
+            color: white;
+        }
+
+        /* Sidebar */
+        #sidebar {
+            width: 260px;
+            background: #020617;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #sidebar button {
+            margin: 5px 0;
+            padding: 10px;
+            background: #1e293b;
+            border: none;
+            color: white;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        #historyList {
+            flex: 1;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+
+        .history-item {
+            padding: 8px;
+            background: #1e293b;
+            margin: 5px 0;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        /* Main */
+        #main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #chat {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        /* Chat bubbles */
+        .bubble {
+            max-width: 60%;
+            padding: 10px;
+            margin: 10px;
+            border-radius: 10px;
+        }
+
+        .user {
+            background: #38bdf8;
+            color: black;
+            margin-left: auto;
+        }
+
+        .bot {
+            background: #1e293b;
+            color: #22c55e;
+            margin-right: auto;
+        }
+
+        /* Input */
+        #input-area {
+            display: flex;
+            padding: 10px;
+            background: #020617;
+        }
+
+        input {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+        }
+
+        button {
+            margin-left: 5px;
+        }
+
+        /* Code */
+        pre {
+            background: black;
+            padding: 10px;
+            border-radius: 8px;
+            position: relative;
+            overflow-x: auto;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            padding: 5px;
+            font-size: 12px;
+            background: #38bdf8;
+            border: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+
+<!-- Sidebar -->
+<div id="sidebar">
+    <button onclick="newChat()">➕ New Chat</button>
+    <button onclick="clearAll()">🗑 Clear All</button>
+
+    <div id="historyList"></div>
+</div>
+
+<!-- Main -->
+<div id="main">
+    <div id="chat"></div>
+
+    <div id="input-area">
+        <input id="input" placeholder="Type a message..." />
+        <button onclick="sendMessage()">Send</button>
+    </div>
+</div>
+
+<script>
+let chats = JSON.parse(localStorage.getItem("chats")) || [];
+let currentChat = [];
+
+// Default message
+function loadDefault() {
+    let chat = document.getElementById("chat");
+    chat.innerHTML = `<div class="bubble bot">Hello 👋 How can I assist you today?</div>`;
+}
+
+function saveChats() {
+    localStorage.setItem("chats", JSON.stringify(chats));
+}
+
+function loadSidebar() {
+    let list = document.getElementById("historyList");
+    list.innerHTML = "";
+
+    chats.forEach((chat, i) => {
+        let div = document.createElement("div");
+        div.className = "history-item";
+        div.innerText = chat[0]?.user || "New Chat";
+        div.onclick = () => loadChat(i);
+        list.appendChild(div);
+    });
+}
+
+function loadChat(index) {
+    currentChat = chats[index];
+    renderChat();
+}
+
+function renderChat() {
+    let chat = document.getElementById("chat");
+    chat.innerHTML = "";
+
+    currentChat.forEach(msg => {
+        chat.innerHTML += `<div class="bubble user">${msg.user}</div>`;
+        chat.innerHTML += `<div class="bubble bot">${formatResponse(msg.bot)}</div>`;
+    });
+}
+
+function newChat() {
+    currentChat = [];
+    loadDefault();
+}
+
+function clearAll() {
+    localStorage.removeItem("chats");
+    chats = [];
+    newChat();
+    loadSidebar();
+}
+
+function copyCode(btn) {
+    let code = btn.nextElementSibling.innerText;
+    navigator.clipboard.writeText(code);
+    btn.innerText = "Copied!";
+    setTimeout(() => btn.innerText = "Copy", 1500);
+}
+
+function formatResponse(text) {
+    return text.replace(/```([\s\S]*?)```/g, (match, code) => {
+        return `
+        <pre>
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            <code>${code}</code>
+        </pre>`;
+    });
+}
+
+// Send on Enter key
+document.getElementById("input").addEventListener("keypress", function(e) {
+    if (e.key === "Enter") {
+        sendMessage();
+    }
+});
+
+async function sendMessage() {
+    let input = document.getElementById("input");
+    let text = input.value.trim();
+
+    if (!text) return;
+
+    let chatDiv = document.getElementById("chat");
+
+    chatDiv.innerHTML += `<div class="bubble user">${text}</div>`;
+
+    let res = await fetch("http://localhost:8000/chat", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ text })
+    });
+
+    let data = await res.json();
+
+    chatDiv.innerHTML += `<div class="bubble bot">${formatResponse(data.reply)}</div>`;
+
+    currentChat.push({ user: text, bot: data.reply });
+
+    if (!chats.includes(currentChat)) {
+        chats.push(currentChat);
+    }
+
+    saveChats();
+    loadSidebar();
+
+    // Clear input automatically
+    input.value = "";
+
+    chatDiv.scrollTop = chatDiv.scrollHeight;
+}
+
+// Load on start
+loadDefault();
+loadSidebar();
+</script>
+
+</body>
+</html>
